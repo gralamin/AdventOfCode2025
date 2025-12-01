@@ -1,7 +1,13 @@
 extern crate filelib;
 
 pub use filelib::load_no_blanks;
+
+#[cfg(not(test))]
 use log::info;
+
+#[cfg(test)]
+use std::println as info;
+
 use mathlib::modulus;
 
 type PuzzleInt = i32;
@@ -49,31 +55,43 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return count;
 }
 
-/// Foo
-/// ```
-/// let vec1: Vec<String> = vec![
-///     "foo"
-/// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day01::puzzle_b(&vec1), 0);
-/// ```
-pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
-    return 0;
+fn move_counting_0s(value: PuzzleInt, rotation: PuzzleInt) -> (PuzzleInt, usize) {
+    let mut count = usize::try_from(rotation.abs() / 100).unwrap();
+    let remainder_0 = rotation % 100;
+
+    info!(
+        "After dividing, have count {}, and remainder {}",
+        count, remainder_0
+    );
+
+    // next check if modulus is different from the addition
+    let addition = value + remainder_0;
+    let modded = modulus(addition, 100);
+    if value != 0 && modded != addition || addition == 0 {
+        count += 1;
+        info!("Detected past 0, count is {}", count);
+    }
+    return (modded, count);
 }
 
-/// Delete this after starting on puzzle_a.
+/// Count how many times we pass by 0.
 /// ```
-/// let vec1: Vec<u32> = vec![];
-/// let vec2: Vec<u32> = vec![1];
-/// assert_eq!(day01::coverage_workaround(&vec1), 1);
-/// assert_eq!(day01::coverage_workaround(&vec2), 2);
+/// let vec1: Vec<String> = vec![
+///     "L68", "L30", "R48", "L5", "R60", "L55", "L1", "L99", "R14", "L82"
+/// ].iter().map(|s| s.to_string()).collect();
+/// assert_eq!(day01::puzzle_b(&vec1), 6);
 /// ```
-pub fn coverage_workaround(a: &Vec<u32>) -> u32 {
-    if a.len() == 0 {
-        info!("Example logging of {:?}", a);
-        return 1;
-    } else {
-        return 2;
+pub fn puzzle_b(string_list: &Vec<String>) -> usize {
+    let input = convert_ints(string_list);
+    let mut v = 50;
+    let mut count: usize = 0;
+    for i in input {
+        info!("v {}, i {} ", v, i);
+        let count_up;
+        (v, count_up) = move_counting_0s(v, i);
+        count += count_up;
     }
+    return count;
 }
 
 #[cfg(test)]
@@ -106,5 +124,69 @@ mod tests {
         let r = -10;
         let expected = 95;
         assert_eq!(move_int(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_0_neg() {
+        let i = 5;
+        let r = -10;
+        let expected = (95, 1);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_hit_0_neg() {
+        let i = 5;
+        let r = -5;
+        let expected = (0, 1);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_0_pos() {
+        let i = 95;
+        let r = 10;
+        let expected = (5, 1);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_hit_0_pos() {
+        let i = 95;
+        let r = 5;
+        let expected = (0, 1);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_multiple_times_pos() {
+        let i = 95;
+        let r = 5000;
+        let expected = (95, 51);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_multiple_times_neg() {
+        let i = 5;
+        let r = -5000;
+        let expected = (5, 51);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_count_passing_0_neg_start_0() {
+        let i = 0;
+        let r = -5;
+        let expected = (95, 0);
+        assert_eq!(move_counting_0s(i, r), expected);
+    }
+
+    #[test]
+    fn test_correct_remainder() {
+        let i = 98;
+        let r = -651;
+        let expected = (47, 6);
+        assert_eq!(move_counting_0s(i, r), expected);
     }
 }
