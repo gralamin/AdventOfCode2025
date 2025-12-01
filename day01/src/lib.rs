@@ -162,7 +162,7 @@ mod tests {
     fn test_count_passing_multiple_times_pos() {
         let i = 95;
         let r = 5000;
-        let expected = (95, 51);
+        let expected = (95, 50);
         assert_eq!(move_counting_0s(i, r), expected);
     }
 
@@ -170,7 +170,7 @@ mod tests {
     fn test_count_passing_multiple_times_neg() {
         let i = 5;
         let r = -5000;
-        let expected = (5, 51);
+        let expected = (5, 50);
         assert_eq!(move_counting_0s(i, r), expected);
     }
 
