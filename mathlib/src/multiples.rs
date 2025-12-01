@@ -6,8 +6,7 @@ use num_traits::{Num, Signed};
 /// ```
 /// assert_eq!(mathlib::gcd(54, 24), 6);
 /// ```
-pub fn gcd<T: Num + Copy>(a: T, b: T) -> T 
-{
+pub fn gcd<T: Num + Copy>(a: T, b: T) -> T {
     let mut cur_b = b;
     let mut cur_a = a;
     while cur_b != T::zero() {
@@ -22,8 +21,7 @@ pub fn gcd<T: Num + Copy>(a: T, b: T) -> T
 /// ```
 /// assert_eq!(mathlib::lcm(4, 6), 12);
 /// ```
-pub fn lcm<T: Num + Copy + Signed>(a: T, b: T) -> T 
-{
+pub fn lcm<T: Num + Copy + Signed>(a: T, b: T) -> T {
     if a == T::zero() || b == T::zero() {
         return T::zero();
     }
