@@ -1,6 +1,8 @@
 # AdventOfCode2025
 Advent of Code for 2025 - https://adventofcode.com/2025
 
+NO AI WAS USED
+
 ## Creating a new date executable
 
 Per day, remember to:
