@@ -1,17 +1,109 @@
 extern crate filelib;
+extern crate gridlib;
 
 pub use filelib::load_no_blanks;
+use gridlib::{GridCoordinate, GridTraversable};
 use log::info;
 
-/// Foo
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum GridType {
+    Paper,
+    Empty,
+}
+
+impl gridlib::GridPrintable for GridType {
+    fn get_character(&self) -> char {
+        return match self {
+            GridType::Paper => '@',
+            GridType::Empty => '.',
+        };
+    }
+}
+
+type ParsedGrid = gridlib::Grid<GridType>;
+
+fn parse_grid(string_list: &Vec<String>) -> ParsedGrid {
+    let height = string_list.len();
+    let width = string_list[0].len();
+    let mut values = vec![];
+
+    for line in string_list {
+        for char in line.chars() {
+            let v: GridType = match char {
+                '@' => GridType::Paper,
+                '.' => GridType::Empty,
+                _ => panic!("Unknown character {}", char),
+            };
+            values.push(v);
+        }
+    }
+    return ParsedGrid::new(width, height, values);
+}
+
+// type for debugging:
+#[derive(Copy, Clone, Debug)]
+struct Overlay {
+    coord: gridlib::GridCoordinate,
+}
+
+impl gridlib::GridPrintable for Overlay {
+    fn get_character(&self) -> char {
+        return 'X';
+    }
+}
+
+impl gridlib::GridOverlay for Overlay {
+    fn get_position(&self) -> GridCoordinate {
+        return self.coord;
+    }
+}
+
+// Find the max neighbors
+fn max_neighbors(grid: &ParsedGrid, max_neighbors: usize) -> Vec<Overlay> {
+    let mut result = vec![];
+    for coord in grid.coord_iter() {
+        if grid.get_value(coord).unwrap() == GridType::Empty {
+            continue;
+        }
+        let num_matching: usize = grid
+            .get_all_adjacent_coordinates(coord)
+            .iter()
+            .map(|&x| {
+                if grid.get_value(x).unwrap() == GridType::Paper {
+                    1
+                } else {
+                    0
+                }
+            })
+            .sum();
+        if num_matching >= max_neighbors {
+            continue;
+        }
+        result.push(Overlay { coord });
+    }
+    return result;
+}
+
+fn print_solution(grid: &ParsedGrid, overlay: &Vec<Overlay>) {
+    info!("Grid solution {}:\n", overlay.len());
+    for line in grid.grid_strings_with_overlay(overlay.clone()) {
+        info!("{}", line);
+    }
+}
+
+/// Find rolls of paper with 4 or more neighbors.
 /// ```
 /// let vec1: Vec<String> = vec![
-///     "foo"
+///     "..@@.@@@@.", "@@@.@.@.@@", "@@@@@.@.@@", "@.@@@@..@.", "@@.@@@@.@@",
+///     ".@@@@@@@.@", ".@.@.@.@@@", "@.@@@.@@@@", ".@@@@@@@@.", "@.@.@@@.@."
 /// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day04::puzzle_a(&vec1), 0);
+/// assert_eq!(day04::puzzle_a(&vec1), 13);
 /// ```
-pub fn puzzle_a(string_list: &Vec<String>) -> u32 {
-    return 0;
+pub fn puzzle_a(string_list: &Vec<String>) -> usize {
+    let parsed = parse_grid(string_list);
+    let solution = max_neighbors(&parsed, 4);
+    print_solution(&parsed, &solution);
+    return solution.len();
 }
 
 /// Foo
@@ -23,20 +115,4 @@ pub fn puzzle_a(string_list: &Vec<String>) -> u32 {
 /// ```
 pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
     return 0;
-}
-
-/// Delete this after starting on puzzle_a.
-/// ```
-/// let vec1: Vec<u32> = vec![];
-/// let vec2: Vec<u32> = vec![1];
-/// assert_eq!(day04::coverage_workaround(&vec1), 1);
-/// assert_eq!(day04::coverage_workaround(&vec2), 2);
-/// ```
-pub fn coverage_workaround(a: &Vec<u32>) -> u32 {
-    if a.len() == 0 {
-        info!("Example logging of {:?}", a);
-        return 1;
-    } else {
-        return 2;
-    }
 }
