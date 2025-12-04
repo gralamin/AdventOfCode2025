@@ -5,6 +5,12 @@ pub use filelib::load_no_blanks;
 use gridlib::GridTraversable;
 use log::info;
 
+use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque};
+
+type QueueType = VecDeque<gridlib::GridCoordinate>;
+type NeighborMap = HashMap<gridlib::GridCoordinate, usize>;
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum GridType {
     Paper,
@@ -106,12 +112,65 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return solution.len();
 }
 
-fn remove_from_grid(grid: &ParsedGrid, overlay: &Vec<Overlay>) -> ParsedGrid {
-    let mut new_grid = grid.clone();
-    for coordwrapper in overlay.iter() {
-        new_grid.set_value(coordwrapper.coord, GridType::Empty);
+fn create_search_space(grid: &ParsedGrid) -> (NeighborMap, QueueType) {
+    let mut neighbor_counts: HashMap<gridlib::GridCoordinate, usize> = HashMap::new();
+    let mut queue: VecDeque<gridlib::GridCoordinate> = VecDeque::new();
+
+    for coord in grid.coord_iter() {
+        if grid.get_value(coord).unwrap() == GridType::Paper {
+            // Count neighbors manually once
+            let count = grid
+                .get_all_adjacent_coordinates(coord)
+                .iter()
+                .filter(|&&adj| grid.get_value(adj).unwrap() == GridType::Paper)
+                .count();
+
+            neighbor_counts.insert(coord, count);
+
+            if count < 4 {
+                queue.push_back(coord);
+            }
+        }
     }
-    return new_grid;
+    return (neighbor_counts, queue);
+}
+
+// Optimized solution, use muts to prevent cloning that would make this operation much longer.
+fn queue_removal(
+    grid: &mut ParsedGrid,
+    neighbor_counts: &mut NeighborMap,
+    queue: &mut QueueType,
+) -> usize {
+    let mut total_removed = 0;
+
+    // To prevent processing the same node twice if it gets added to the queue multiple times
+    let mut processed = HashSet::new();
+
+    while let Some(curr_coord) = queue.pop_front() {
+        if processed.contains(&curr_coord) {
+            continue;
+        }
+        grid.set_value(curr_coord, GridType::Empty);
+        processed.insert(curr_coord);
+        total_removed += 1;
+
+        // We only care about neighbors that are currently Paper
+        let neighbors = grid.get_all_adjacent_coordinates(curr_coord);
+
+        for neighbor in neighbors {
+            if let Some(count) = neighbor_counts.get_mut(&neighbor) {
+                if *count > 0 {
+                    *count -= 1;
+
+                    if *count < 4 {
+                        queue.push_back(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    return total_removed;
 }
 
 /// Iterate over the grid, removing paper until none can be removed.
@@ -124,14 +183,6 @@ fn remove_from_grid(grid: &ParsedGrid, overlay: &Vec<Overlay>) -> ParsedGrid {
 /// ```
 pub fn puzzle_b(string_list: &Vec<String>) -> usize {
     let mut parsed = parse_grid(string_list);
-    let mut solution = max_neighbors(&parsed, 4);
-    let mut total = 0;
-    while solution.len() > 0 {
-        print_solution(&parsed, &solution);
-
-        total += solution.len();
-        parsed = remove_from_grid(&parsed, &solution);
-        solution = max_neighbors(&parsed, 4);
-    }
-    return total;
+    let (mut neighbor_counts, mut queue) = create_search_space(&parsed);
+    return queue_removal(&mut parsed, &mut neighbor_counts, &mut queue);
 }
