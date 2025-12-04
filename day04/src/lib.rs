@@ -2,7 +2,7 @@ extern crate filelib;
 extern crate gridlib;
 
 pub use filelib::load_no_blanks;
-use gridlib::{GridCoordinate, GridTraversable};
+use gridlib::GridTraversable;
 use log::info;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -53,7 +53,7 @@ impl gridlib::GridPrintable for Overlay {
 }
 
 impl gridlib::GridOverlay for Overlay {
-    fn get_position(&self) -> GridCoordinate {
+    fn get_position(&self) -> gridlib::GridCoordinate {
         return self.coord;
     }
 }
@@ -106,13 +106,32 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return solution.len();
 }
 
-/// Foo
+fn remove_from_grid(grid: &ParsedGrid, overlay: &Vec<Overlay>) -> ParsedGrid {
+    let mut new_grid = grid.clone();
+    for coordwrapper in overlay.iter() {
+        new_grid.set_value(coordwrapper.coord, GridType::Empty);
+    }
+    return new_grid;
+}
+
+/// Iterate over the grid, removing paper until none can be removed.
 /// ```
 /// let vec1: Vec<String> = vec![
-///     "foo"
+///     "..@@.@@@@.", "@@@.@.@.@@", "@@@@@.@.@@", "@.@@@@..@.", "@@.@@@@.@@",
+///     ".@@@@@@@.@", ".@.@.@.@@@", "@.@@@.@@@@", ".@@@@@@@@.", "@.@.@@@.@."
 /// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day04::puzzle_b(&vec1), 0);
+/// assert_eq!(day04::puzzle_b(&vec1), 43);
 /// ```
-pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
-    return 0;
+pub fn puzzle_b(string_list: &Vec<String>) -> usize {
+    let mut parsed = parse_grid(string_list);
+    let mut solution = max_neighbors(&parsed, 4);
+    let mut total = 0;
+    while solution.len() > 0 {
+        print_solution(&parsed, &solution);
+
+        total += solution.len();
+        parsed = remove_from_grid(&parsed, &solution);
+        solution = max_neighbors(&parsed, 4);
+    }
+    return total;
 }
