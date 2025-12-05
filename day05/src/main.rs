@@ -1,7 +1,7 @@
+use day05::load;
 use day05::puzzle_a;
 use day05::puzzle_b;
 use day05::split_lines_by_blanks;
-use day05::load;
 
 fn main() {
     colog::init();
