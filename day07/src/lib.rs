@@ -9,7 +9,7 @@ use log::info;
 #[cfg(test)]
 use std::println as info;
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Terrain {
@@ -91,65 +91,6 @@ fn find_end(start: GridCoordinate, grid: &Grid<Terrain>) -> (GridLine, Vec<GridC
     );
 }
 
-fn merge_gridlines(lines: &Vec<GridLine>) -> Vec<GridLine> {
-    let mut merged = vec![];
-    let mut current_merged_line = lines[0];
-    let mut first = true;
-    for l in lines {
-        if first {
-            first = false;
-            current_merged_line = l.clone();
-            info!("Expanding {:?}", current_merged_line);
-            continue;
-        }
-        if l.start.x != current_merged_line.start.x {
-            // We have switched to a new x, this line is considered done
-            info!("Merged line: {:?}", current_merged_line);
-            merged.push(current_merged_line);
-            current_merged_line = l.clone();
-            info!("Expanding {:?}", current_merged_line);
-            continue;
-        }
-        if l.start.y <= current_merged_line.end.y {
-            if current_merged_line.end.y < l.end.y {
-                current_merged_line.end.y = l.end.y;
-            }
-        } else {
-            // This is a new range
-            info!("Merged line: {:?}", current_merged_line);
-            merged.push(current_merged_line);
-
-            current_merged_line = l.clone();
-            info!("Expanding {:?}", current_merged_line);
-        }
-    }
-    merged.push(current_merged_line);
-    info!("Merged line: {:?}", current_merged_line);
-    return merged;
-}
-
-fn queue_lines(grid: &Grid<Terrain>, start: GridCoordinate) -> Vec<GridLine> {
-    let mut queue = VecDeque::new();
-    queue.push_front(start);
-    let mut seen_starts: HashSet<GridCoordinate> = HashSet::new();
-    let mut gridlines = vec![];
-
-    while let Some(cur) = queue.pop_back() {
-        if seen_starts.contains(&cur) {
-            continue;
-        }
-        seen_starts.insert(cur);
-
-        let (line, next) = find_end(cur, &grid);
-
-        gridlines.push(line);
-        for n in next {
-            queue.push_front(n);
-        }
-    }
-    return gridlines;
-}
-
 fn queue_lines_split_count(grid: &Grid<Terrain>, start: GridCoordinate) -> usize {
     let mut queue = VecDeque::new();
     queue.push_front(start);
@@ -193,24 +134,51 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return queue_lines_split_count(&grid, start);
 }
 
-/// Foo
+fn find_all_possible_paths(grid: &Grid<Terrain>, start: GridCoordinate) -> usize {
+    let mut memo = HashMap::new();
+    return dfs_recursive(grid, start, &mut memo);
+}
+
+fn dfs_recursive(
+    grid: &Grid<Terrain>,
+    current: GridCoordinate,
+    memo: &mut HashMap<GridCoordinate, usize>,
+) -> usize {
+    // Memoization immediate return
+    if let Some(&count) = memo.get(&current) {
+        return count;
+    }
+
+    let (_, next_starts) = find_end(current, grid);
+    if next_starts.is_empty() {
+        // The line ended from here
+        return 1;
+    }
+
+    let mut total_paths = 0;
+    for next in next_starts {
+        total_paths += dfs_recursive(grid, next, memo)
+    }
+
+    memo.insert(current, total_paths);
+    return total_paths;
+}
+
+/// Count how many possible paths there are through this grid.
 /// ```
 /// let vec1: Vec<String> = vec![
-///     "foo"
+///     ".......S.......", "...............", ".......^.......",
+///     "...............", "......^.^......", "...............",
+///     ".....^.^.^.....", "...............", "....^.^...^....",
+///     "...............", "...^.^...^.^...", "...............",
+///     "..^...^.....^..", "...............", ".^.^.^.^.^...^.",
+///     "..............."
 /// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day07::puzzle_b(&vec1), 0);
+/// assert_eq!(day07::puzzle_b(&vec1), 40);
 /// ```
-pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
-    /*
-    info!("Found gridlines: {:?}", gridlines);
-    // merge redundant gridlines
-    // We want xs to match, and then we want
-    gridlines.sort_by(|&a, &b| a.start.x.cmp(&b.start.x).then(a.start.y.cmp(&b.start.y)));
-    let merged = merge_gridlines(&gridlines);
-    info!("Merged: {:?}", merged);
-    return merged.len();
-    */
-    return 0;
+pub fn puzzle_b(string_list: &Vec<String>) -> usize {
+    let (grid, start) = parse_grid_and_start(string_list);
+    return find_all_possible_paths(&grid, start);
 }
 
 #[cfg(test)]
@@ -257,96 +225,6 @@ mod tests {
         let expected_next = vec![GridCoordinate::new(6, 2), GridCoordinate::new(8, 2)];
         assert_eq!(resultline, expectedline);
         assert_eq!(result_next, expected_next);
-    }
-
-    #[test]
-    fn test_merge_queue_lines() {
-        let mut lines = vec![
-            GridLine {
-                start: GridCoordinate::new(0, 0),
-                end: GridCoordinate::new(0, 5),
-            },
-            GridLine {
-                start: GridCoordinate::new(0, 2),
-                end: GridCoordinate::new(0, 7),
-            },
-            GridLine {
-                start: GridCoordinate::new(1, 0),
-                end: GridCoordinate::new(1, 1),
-            },
-            GridLine {
-                start: GridCoordinate::new(1, 2),
-                end: GridCoordinate::new(1, 5),
-            },
-        ];
-        // Ensure sorted the same
-        lines.sort_by(|&a, &b| a.start.x.cmp(&b.start.x).then(a.start.y.cmp(&b.start.y)));
-
-        let expected = vec![
-            GridLine {
-                start: GridCoordinate::new(0, 0),
-                end: GridCoordinate::new(0, 7),
-            },
-            GridLine {
-                start: GridCoordinate::new(1, 0),
-                end: GridCoordinate::new(1, 1),
-            },
-            GridLine {
-                start: GridCoordinate::new(1, 2),
-                end: GridCoordinate::new(1, 5),
-            },
-        ];
-        assert_eq!(merge_gridlines(&lines), expected);
-    }
-
-    #[test]
-    fn test_a_for_debug() {
-        let vec1: Vec<String> = vec![
-            ".......S.......",
-            "...............",
-            ".......^.......",
-            "...............",
-            "......^.^......",
-            "...............",
-            ".....^.^.^.....",
-            "...............",
-            "....^.^...^....",
-            "...............",
-            "...^.^...^.^...",
-            "...............",
-            "..^...^.....^..",
-            "...............",
-            ".^.^.^.^.^...^.",
-            "...............",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        assert_eq!(puzzle_a(&vec1), 21);
-        /*
-          012345678901234
-        0 .......S.......
-        1 .......|.......
-        2 ......|^|......
-        3 ......|.|......
-        4 .....|^|^|.....
-        5 .....|.|.|.....
-        6 ....|^|^|^|....
-        7 ....|.|.|.|....
-        8 ...|^|^|||^|...
-        9 ...|.|.|||.|...
-        0 ..|^|^|||^|^|..
-        1 ..|.|.|||.|.|..
-        2 .|^|||^||.||^|.
-        3 .|.|||.||.||.|.
-        4 |^|^|^|^|^|||^|
-        5 |.|.|.|.|.|||.|
-
-        Hit at 7,2 (end 7,1)
-        Hit at 6,4 (end 6,3)
-        Hit at 8,4 (end 8,3)
-        Hit at 5,6 (end 5,5)
-                 */
     }
 
     #[test]
