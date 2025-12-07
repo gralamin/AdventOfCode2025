@@ -8,4 +8,5 @@ edition = "2024"
 [dependencies]
 colog = "1.4.0"
 filelib = { path = "../filelib" }
+gridlib = { path = "../gridlib" }
 log = { version = "0.4.29", features=["max_level_trace", "release_max_level_warn"] }
