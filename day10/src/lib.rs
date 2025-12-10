@@ -1,5 +1,6 @@
 extern crate filelib;
 
+use good_lp::{IntoAffineExpression, Solution, SolverModel, highs, variable, variables};
 #[cfg(not(test))]
 use log::info;
 
@@ -43,21 +44,6 @@ impl Machine {
         for idx in self.buttons[index].clone() {
             self.cur_light[idx] = !self.cur_light[idx];
         }
-    }
-
-    fn push_button_joltage(&mut self, index: usize) {
-        for idx in self.buttons[index].clone() {
-            self.cur_joltage[idx] = self.cur_joltage[idx] + 1;
-        }
-    }
-
-    fn is_joltage_goal_impossible(&self) -> bool {
-        for index in 0..self.cur_joltage.len() {
-            if self.cur_joltage[index] > self.joltage_goal[index] {
-                return true;
-            }
-        }
-        return false;
     }
 }
 
@@ -169,48 +155,40 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
 }
 
 fn find_fewest_presses_for_jolt(m: &Machine) -> usize {
-    // exactly the same idea, but different data
-    let mut seen_states: HashSet<(usize, Joltages)> = HashSet::new();
-    let mut queue = VecDeque::new();
-    for index in 0..m.buttons.len() {
-        queue.push_back((index, m.clone(), vec![]));
+    // Run good_lp against it, to solve the linear program.
+    let mut vars = variables!{};
+    for i in 0..m.buttons.len() {
+        vars.add(variable().min(0).integer().name(format!("x{}", i)));
     }
+    let press_vars = vars
+        .iter_variables_with_def()
+        .map(|(v, _)| v)
+        .collect::<Vec<_>>();
 
-    while let Some((cur_button, mut cur_machine, path)) = queue.pop_front() {
-        cur_machine.push_button_joltage(cur_button);
-        let mut new_path = path.clone();
-        new_path.push(cur_button);
-        info!(
-            "Checking state: {}, {:?}, {:?}",
-            cur_button, cur_machine.cur_joltage, path
-        );
-        if seen_states.contains(&(cur_button, cur_machine.cur_joltage.clone())) {
-            info!("Discarding seen");
-            continue;
-        }
-        seen_states.insert((cur_button, cur_machine.cur_joltage.clone()));
+    let mut problem = highs(
+        vars.minimise((0..m.buttons.len()).fold(0.into_expression(), |acc, i| acc + press_vars[i])),
+    );
 
-        if cur_machine.cur_joltage == cur_machine.joltage_goal {
-            info!("Found solution {:?}", new_path);
-            return new_path.len();
-        }
-
-        if cur_machine.is_joltage_goal_impossible() {
-            info!("Deadend found");
-            continue;
-        }
-
-        // Not found the solution yet, try pressing every button.
-        for index in 0..m.buttons.len() {
-            queue.push_back((index, cur_machine.clone(), new_path.clone()));
+    let mut exprs = vec![0.into_expression(); m.joltage_goal.len()];
+    for i in 0..m.buttons.len() {
+        for &x in &m.buttons[i] {
+            exprs[x] += press_vars[i];
         }
     }
 
-    info!("Could not find solution, returning usize max");
-    return usize::MAX;
+    for (e, j) in exprs.into_iter().zip(m.joltage_goal.clone()) {
+        problem.add_constraint(e.eq(j));
+    }
+
+    let sol = problem.solve().unwrap();
+    return press_vars
+        .iter()
+        .map(|&v| sol.value(v))
+        .map(|f| f.round() as usize)
+        .sum();
 }
 
-/// Find the fewest button presses for the joltage requirements and buttons
+/// Find the fewest button presses for the joltage requirements
 /// ```
 /// let vec1: Vec<String> = vec![
 ///     "[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}", "[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}", "[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}"

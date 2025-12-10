@@ -9,3 +9,4 @@ edition = "2024"
 colog = "1.4.0"
 filelib = { path = "../filelib" }
 log = { version = "0.4.29", features=["max_level_trace", "release_max_level_warn"] }
+good_lp = { version = "1.14.2", features = ["highs"], default-features = false }
