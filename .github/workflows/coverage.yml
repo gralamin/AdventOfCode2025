@@ -17,5 +17,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y cmake
+
       - name: Generate code coverage
         run: make coverage
