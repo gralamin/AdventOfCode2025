@@ -156,34 +156,52 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
 
 fn find_fewest_presses_for_jolt(m: &Machine) -> usize {
     // Run good_lp against it, to solve the linear program.
-    let mut vars = variables!{};
-    for i in 0..m.buttons.len() {
-        vars.add(variable().min(0).integer().name(format!("x{}", i)));
-    }
-    let press_vars = vars
-        .iter_variables_with_def()
-        .map(|(v, _)| v)
-        .collect::<Vec<_>>();
+    let mut problem_vars = variables!();
 
-    let mut problem = highs(
-        vars.minimise((0..m.buttons.len()).fold(0.into_expression(), |acc, i| acc + press_vars[i])),
-    );
+    // Create a variable for each button representing how many times it is pressed.
+    // We constrain this to be a positive integer.
+    let button_press_vars: Vec<_> = (0..m.buttons.len())
+        .map(|i| problem_vars.add(variable().min(0).integer().name(format!("btn_{}", i))))
+        .collect();
 
-    let mut exprs = vec![0.into_expression(); m.joltage_goal.len()];
-    for i in 0..m.buttons.len() {
-        for &x in &m.buttons[i] {
-            exprs[x] += press_vars[i];
+    // Define the Objective: Minimize the total number of button presses
+    let total_presses = button_press_vars
+        .iter()
+        .fold(0.into_expression(), |acc, &v| acc + v);
+    // Fold because I always forgethow it works: Its a running total, accumulating each value into the expression.
+    // Its different from reduce, because it lets you change the type.
+    let mut problem = highs(problem_vars.minimise(total_presses));
+
+    // Build Constraints:
+    // For every specific joltage index, the sum of contributions from all buttons must equal the goal for that component.
+
+    // Initialize an expression for every joltage component (e.g., component 0, component 1...)
+    let mut component_equations = vec![0.into_expression(); m.joltage_goal.len()];
+
+    // Iterate over every button to see which components it affects
+    for (button_idx, affected_indices) in m.buttons.iter().enumerate() {
+        let press_count_var = button_press_vars[button_idx];
+
+        // Add this button's variable to the equation of every component it affects
+        for &component_idx in affected_indices {
+            component_equations[component_idx] += press_count_var;
         }
     }
 
-    for (e, j) in exprs.into_iter().zip(m.joltage_goal.clone()) {
-        problem.add_constraint(e.eq(j));
+    // Apply the equality constraint: Calculated Sum == Goal Value
+    for (equation, &target_value) in component_equations.into_iter().zip(&m.joltage_goal) {
+        problem.add_constraint(equation.eq(target_value));
     }
 
-    let sol = problem.solve().unwrap();
-    return press_vars
+    let solution = problem
+        .solve()
+        .expect("Linear program failed to find a solution");
+
+    // Aggregate Result
+    // round to handle floating point epsilon errors (e.g. 2.99999 -> 3)
+    return button_press_vars
         .iter()
-        .map(|&v| sol.value(v))
+        .map(|&v| solution.value(v))
         .map(|f| f.round() as usize)
         .sum();
 }
