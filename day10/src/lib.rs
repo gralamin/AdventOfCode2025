@@ -22,17 +22,20 @@ struct Machine {
     light_goal: Lights,
     cur_light: Lights,
     buttons: Vec<Button>,
-    joltage: Joltages,
+    cur_joltage: Joltages,
+    joltage_goal: Joltages,
 }
 
 impl Machine {
     fn new(light_goal: Lights, buttons: Vec<Button>, joltages: Joltages) -> Self {
         let cur_light = vec![false; light_goal.len()];
+        let cur_joltage = vec![0; joltages.len()];
         return Machine {
             light_goal: light_goal,
             cur_light: cur_light,
             buttons: buttons,
-            joltage: joltages,
+            cur_joltage: cur_joltage,
+            joltage_goal: joltages,
         };
     }
 
@@ -40,6 +43,21 @@ impl Machine {
         for idx in self.buttons[index].clone() {
             self.cur_light[idx] = !self.cur_light[idx];
         }
+    }
+
+    fn push_button_joltage(&mut self, index: usize) {
+        for idx in self.buttons[index].clone() {
+            self.cur_joltage[idx] = self.cur_joltage[idx] + 1;
+        }
+    }
+
+    fn is_joltage_goal_impossible(&self) -> bool {
+        for index in 0..self.cur_joltage.len() {
+            if self.cur_joltage[index] > self.joltage_goal[index] {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -138,7 +156,7 @@ fn find_fewest_presses(m: &Machine) -> usize {
     return usize::MAX;
 }
 
-/// Find the fewest presses required to
+/// Find the fewest presses required for the lights
 /// ```
 /// let vec1: Vec<String> = vec![
 ///     "[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}", "[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}", "[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}"
@@ -150,15 +168,61 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return machines.iter().map(|m| find_fewest_presses(m)).sum();
 }
 
-/// Foo
+fn find_fewest_presses_for_jolt(m: &Machine) -> usize {
+    // exactly the same idea, but different data
+    let mut seen_states: HashSet<(usize, Joltages)> = HashSet::new();
+    let mut queue = VecDeque::new();
+    for index in 0..m.buttons.len() {
+        queue.push_back((index, m.clone(), vec![]));
+    }
+
+    while let Some((cur_button, mut cur_machine, path)) = queue.pop_front() {
+        cur_machine.push_button_joltage(cur_button);
+        let mut new_path = path.clone();
+        new_path.push(cur_button);
+        info!(
+            "Checking state: {}, {:?}, {:?}",
+            cur_button, cur_machine.cur_joltage, path
+        );
+        if seen_states.contains(&(cur_button, cur_machine.cur_joltage.clone())) {
+            info!("Discarding seen");
+            continue;
+        }
+        seen_states.insert((cur_button, cur_machine.cur_joltage.clone()));
+
+        if cur_machine.cur_joltage == cur_machine.joltage_goal {
+            info!("Found solution {:?}", new_path);
+            return new_path.len();
+        }
+
+        if cur_machine.is_joltage_goal_impossible() {
+            info!("Deadend found");
+            continue;
+        }
+
+        // Not found the solution yet, try pressing every button.
+        for index in 0..m.buttons.len() {
+            queue.push_back((index, cur_machine.clone(), new_path.clone()));
+        }
+    }
+
+    info!("Could not find solution, returning usize max");
+    return usize::MAX;
+}
+
+/// Find the fewest button presses for the joltage requirements and buttons
 /// ```
 /// let vec1: Vec<String> = vec![
-///     "foo"
+///     "[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}", "[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}", "[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}"
 /// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day10::puzzle_b(&vec1), 0);
+/// assert_eq!(day10::puzzle_b(&vec1), 33);
 /// ```
-pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
-    return 0;
+pub fn puzzle_b(string_list: &Vec<String>) -> usize {
+    let machines = parse_lines(string_list);
+    return machines
+        .iter()
+        .map(|m| find_fewest_presses_for_jolt(m))
+        .sum();
 }
 
 #[cfg(test)]
@@ -181,7 +245,7 @@ mod tests {
         let expected = Machine::new(light_goal, buttons, joltage);
         let result = parse_lines(&input)[0].clone();
         assert_eq!(result.light_goal, expected.light_goal);
-        assert_eq!(result.joltage, expected.joltage);
+        assert_eq!(result.joltage_goal, expected.joltage_goal);
         assert_eq!(result.buttons, expected.buttons);
     }
 
@@ -197,5 +261,19 @@ mod tests {
         .map(|s| s.to_string())
         .collect();
         assert_eq!(puzzle_a(&vec1), 7);
+    }
+
+    #[test]
+    fn test_part_b_debug() {
+        // get better debug info from unit tests then doc tests
+        let vec1: Vec<String> = vec![
+            "[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}",
+            "[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}",
+            "[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(puzzle_b(&vec1), 33);
     }
 }
