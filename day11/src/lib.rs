@@ -66,15 +66,56 @@ pub fn puzzle_a(string_list: &Vec<String>) -> usize {
     return dfs_recursive(&graph, start, &mut memo);
 }
 
-/// Foo
+fn dfs_b_recursive(
+    graph: &AdjacencyGraph,
+    current: DeviceId,
+    memo: &mut HashMap<(DeviceId, usize), usize>,
+    path: &Vec<DeviceId>,
+    required: &Vec<DeviceId>,
+) -> usize {
+    let mut new_path = path.clone();
+    new_path.push(current.clone());
+    let required_satisfied = new_path.iter().filter(|x| required.contains(x)).count();
+    // Memoization immediate return
+    if let Some(&count) = memo.get(&(current.clone(), required_satisfied)) {
+        return count;
+    }
+
+    let outputs = graph.get(&current).expect("all should be in there");
+    if outputs.is_empty() {
+        if required_satisfied == required.len() {
+            info!("{:?} path found", new_path);
+            return 1;
+        }
+        info!("{:?} path pruned", new_path);
+        return 0;
+    }
+
+    let mut total_paths = 0;
+    for next in outputs {
+        total_paths += dfs_b_recursive(graph, next.clone(), memo, &new_path, required);
+    }
+
+    memo.insert((current, required_satisfied), total_paths);
+    return total_paths;
+}
+
+/// Find paths from `svr` to `out` that contain `dac` and `fft`
 /// ```
 /// let vec1: Vec<String> = vec![
-///     "foo"
+///     "svr: aaa bbb", "aaa: fft", "fft: ccc", "bbb: tty", "tty: ccc",
+///     "ccc: ddd eee", "ddd: hub", "hub: fff", "eee: dac", "dac: fff",
+///     "fff: ggg hhh", "ggg: out", "hhh: out"
 /// ].iter().map(|s| s.to_string()).collect();
-/// assert_eq!(day11::puzzle_b(&vec1), 0);
+/// assert_eq!(day11::puzzle_b(&vec1), 2);
 /// ```
-pub fn puzzle_b(string_list: &Vec<String>) -> u32 {
-    return 0;
+pub fn puzzle_b(string_list: &Vec<String>) -> usize {
+    let graph = parse(string_list);
+    let start = "svr".to_string();
+    let mut memo = HashMap::new();
+    let path = vec![];
+    let required = vec!["dac".to_string(), "fft".to_string()];
+    return dfs_b_recursive(&graph, start, &mut memo, &path, &required);
 }
 
 #[cfg(test)]
@@ -116,5 +157,29 @@ mod tests {
         );
         expected.insert("out".to_string(), vec![]);
         assert_eq!(parse(&vec1), expected);
+    }
+
+    #[test]
+    fn test_part_b() {
+        let vec1: Vec<String> = vec![
+            "svr: aaa bbb",
+            "aaa: fft",
+            "fft: ccc",
+            "bbb: tty",
+            "tty: ccc",
+            "ccc: ddd eee",
+            "ddd: hub",
+            "hub: fff",
+            "eee: dac",
+            "dac: fff",
+            "fff: ggg hhh",
+            "ggg: out",
+            "hhh: out",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let expected = 2;
+        assert_eq!(puzzle_b(&vec1), expected);
     }
 }
