@@ -119,7 +119,11 @@ impl PuzzleRegion {
     fn can_fit(&self, polygons: &Vec<PuzzlePolygon>) -> bool {
         // We map the IDs in `to_fit` to the actual shape definitions.
         // We assume the `all_polygons` ID == index.
-        info!("Trying to solve {:?}, with {} polygons", self.to_fit, polygons.len());
+        info!(
+            "Trying to solve {:?}, with {} polygons",
+            self.to_fit,
+            polygons.len()
+        );
 
         let mut shapes_to_place: Vec<&PuzzlePolygon> = Vec::new();
 
@@ -129,7 +133,7 @@ impl PuzzleRegion {
                 // Assuming all_polygons is sorted by ID such that index == ID.
                 // If not, use: all_polygons.iter().find(|p| p.id == id)
                 let polygon = &polygons[id];
-                
+
                 // Add 'count' copies of this polygon to our list
                 for _ in 0..count {
                     shapes_to_place.push(polygon);
@@ -146,10 +150,16 @@ impl PuzzleRegion {
         });
 
         let area = self.width * self.height;
-        let to_place_area: usize = shapes_to_place.iter().map(|x| x.variations[0].points.len()).sum();
+        let to_place_area: usize = shapes_to_place
+            .iter()
+            .map(|x| x.variations[0].points.len())
+            .sum();
         if to_place_area > area {
             // Larger than available area, quit instantly
-            info!("Trying to place {} area in {} available", to_place_area, area);
+            info!(
+                "Trying to place {} area in {} available",
+                to_place_area, area
+            );
             return false;
         }
 
