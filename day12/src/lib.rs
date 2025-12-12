@@ -330,38 +330,6 @@ pub fn puzzle_a(string_list: &Vec<Vec<String>>) -> usize {
     return regions.iter().filter(|x| x.can_fit(&polygons)).count();
 }
 
-/// Foo
-/// ```
-/// let vec1: Vec<Vec<String>> = vec![
-///     vec![
-///       "0:", "###", "##.", "##."
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "1:", "###", "##.", ".##"
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "2:", ".##", "###", "##.",
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "3:", "##.", "###", "##.",
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "4:", "###", "#..", "###",
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "5:", "###", ".#.", "###",
-///     ].iter().map(|s| s.to_string()).collect(),
-///     vec![
-///       "4x4: 0 0 0 0 2 0", "12x5: 1 0 1 0 2 2", "12x5: 1 0 1 0 3 2",
-///     ].iter().map(|s| s.to_string()).collect()
-/// ];
-/// assert_eq!(day12::puzzle_b(&vec1), 0);
-/// ```
-pub fn puzzle_b(string_list: &Vec<Vec<String>>) -> u32 {
-    let (regions, polygons) = parse(string_list);
-    return 0;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
